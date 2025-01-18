@@ -1,13 +1,19 @@
-# Introduction to Parallel Computing. Exploring Implicit and Explicit Parallelism with OpenMP
-This project aims to deeply explore the use of Parallel Programming techniques in the forms of Implicit-Level Parallelism (ILP) and Explicit Parallelism with OpenMP (OMP) in order to optimize two different problems, the symmetry check and the transpose computation of a matrix, and subsequently benchmark and analyze the performance of both approaches, comparing their efficiency and scalability.
+# Introduction to Parallel Computing. Parallelizing matrix operations using MPI
+This project aims to deeply explore the use of Parallel Programming techniques in the form of Message Passing Interface (MPI) on a distributed memory system in order to optimize two different problems, the symmetry check and the transpose computation of a matrix, and subsequently benchmark and analyze the performance of the implementations, comparing their efficiency and scalability with respect to the sequential baseline.
+
 
 ## Description of the repository
 ```
 .
-├── bin            # Compiled program files
-├── lib            # Source code files
-├── results        # Results of the simulations
-├──
+├── bin                  # Compiled program files
+├── lib                  # Source code files
+├── results              # Results of the simulations
+├── bandwidth.py         # Python script to plot bandwidth graphs
+├── flops.py             # Python script to plot flops graphs
+├── mpi_plotting.py      # Python script to plot speedup and efficiency graphs
+├── mpi_scalability.py   # Python script to plot scalability graphs
+├── start.pbs            # Script to run simulations on HPC
+├── start.sh             # Script to run simulations on local machine
 └── README.md
 ```
 The repository contains all the files used to run the simulations with the methodologies described in the paper. The `lib` folder contains all the source code files. When compiled via the scripts the generated programs will be located in the `bin` and, once executed, the results will be saved in the `results` folder.
@@ -28,130 +34,87 @@ In order to execute on the HPC all the simulations, from the home folder of the 
 ```
 qsub start.pbs
 ```
-This will start the simulations on the `short_cpuQ` with 1 selected node, 32 cpus and 512 MB of memory. The default simulation parameters are `n=0`, `rep=500`, `threads=0` that can be configured by modifying them in the first lines of the `start.pbs` file. When `n` is set to `0`, all the simulations from `n=4` to `n=12` will be executed; when `rep` is set to an invalid or negative number, it will be assigned to default  `500`; when `threads` is set to `0`, all the simulations from `threads=2` to `threads=64` (doubled at every iteration) will be executed, otherwise only the sequential and the passed `threads` will be executed. At the end of the simulations, the results will be saved in the `results` folder as 2 .csv files: `results_ilp.csv` and `results_omp.csv`.
+This will start the simulations on the `short_cpuQ` with 1 selected node, 16 cpus, 16 mpi processes and 1024 MB of memory. The default simulation parameters are `n=0`, `rep=100`, `procs=0` that can be configured by modifying them in the first lines of the `start.pbs` file. When `n` is set to `0`, all the simulations from `n=4` to `n=12` will be executed; when `rep` is set to an invalid or negative number, it will be assigned to default  `100`; when `procs` is set to `0`, all the simulations from `procs=2` to `procs=16` (doubled at every iteration) will be executed, otherwise only the sequential and the passed `procs` will be executed. At the end of the simulations, the results will be saved in the `results` folder as `results_mpi.csv`.
 
-Contents of `results_ilp.csv`:
-
-| Column      | Description |
-| ----------- | ----------- |
-| code        | The code assigned to the program (refer to the table above) |
-| n | The dimension of the input matrix |
-| flops | The computed flops of the symmetry check routine |
-| bandwidth | The computed bandwidth in B/s of the transpose routine |
-
-Contents of `results_omp.csv`:
+Contents of `results_mpi.csv`:
 
 | Column      | Description |
 | ----------- | ----------- |
 | code        | The code assigned to the program (refer to the table above) |
 | n | The dimension of the input matrix |
-| threads | The number of threads used |
-| speedup1 | The computed speedup of the symmetry check routine |
-| efficiency1 | The computed efficiency of the symmetry check routine |
-| speedup2 | The computed speedup of the transpose routine |
-| efficiency2 | The computed efficiency of the transpose routine |
-| bandwidth | The computed bandwidth in B/s of the transpose routine |
+| processes | The number of processes executed |
+| time1message | The execution time of the symmetry check routine |
+| time1effective | The execution time of the symmetry check routine (excluded the message passing time) |
+| time2message | The execution time of the transpose routine |
+| time2effective | The execution time of the transpose routine (excluded the message passing time) |
 
-In order to execute the simulations on the local system, ensure that `gcc-9.1.0` is installed and execute the script `start.sh [n] [rep] [threads]` from the home folder of the repository. If no or lower than 3 arguments are passed, the missing ones will be assigned as described before with `start.pbs`. At the end of the simulations, the results will be saved in the `results` folder as 2 .csv files: `results_ilp.csv` and `results_omp.csv`.
+In order to execute the simulations on the local system, ensure that `gcc-9.1.0` is installed along with `mpich-3.2.1` and execute the script `start.sh [n] [rep] [procs]` from the home folder of the repository. If no or lower than 3 arguments are passed, the missing ones will be assigned as described before with `start.pbs`. At the end of the simulations, the results will be saved in the `results` folder as `results_mpi.csv`.
 
-In order to execute single programs, ensure that `gcc-9.1.0` is installed and comile using the following commands based on the desired source file:
+In order to execute single programs, ensure that `gcc-9.1.0` and `mpich-3.2.1` are installed, move in the `lib` folder, compile and execute using the following commands based on the desired source file:
 
 S: sequential.c
 ```
 gcc sequential.c -o sequential.o -lm
+./sequential.o [n] [rep]
 ```
 
-V: vectorization.c:
+SB: sequential_block.c:
 ```
-gcc vectorization.c -o vectorization.o -mavx2 -lm
-```
-
-B: block_access_pattern.c:
-```
-gcc block_access_pattern.c -o ../bin/block_access_pattern.o -lm
+gcc sequential_block.c -o sequential_block.o -lm
+./sequential_block.o [n] [rep]
 ```
 
-BP: block_access_pattern_prefetching.c:
+M: mpi.c:
 ```
-gcc block_access_pattern_prefetching.c -o ../bin/block_access_pattern_prefetching.o -lm
-```
-
-BO1: block_access_pattern.c
-```
-gcc block_access_pattern.c -o block_access_pattern_O1.o -O1 -lm -DO1
+mpicc mpi.c -o mpi.o -lm
+mpirun -np [procs] ./mpi.o [n] [rep]
 ```
 
-BO2: block_access_pattern.c
+MD: mpi_divided.c:
 ```
-gcc block_access_pattern.c -o block_access_pattern_O2.o -O2 -lm -DO2
-```
-
-BO3: block_access_pattern.c
-```
-gcc block_access_pattern.c -o block_access_pattern_O3.o -O3 -lm -DO3
+mpicc mpi_divided.c -o mpi_divided.o -lm
+mpirun -np [procs] ./mpi_divided.o [n] [rep]
 ```
 
-BOf: block_access_pattern.c
+MC: mpi_custom_datatypes.c:
 ```
-gcc block_access_pattern.c -o block_access_pattern_Ofast.o -Ofast -lm -DOfast
-```
-
-O: omp.c
-```
-gcc omp.c -o omp.o -fopenmp -lm
+mpicc mpi_custom_datatypes.c -o mpi_custom_datatypes.o -lm
+mpirun -np [procs] ./mpi_custom_datatypes.o [n] [rep]
 ```
 
-OR: omp_reduction.c
+MB: mpi_block.c:
 ```
-gcc omp_reduction.c -o omp_reduction.o -fopenmp -lm
-```
-
-OB: omp_block_access_pattern.c
-```
-gcc omp_block_access_pattern.c -o omp_block_access_pattern.o -fopenmp -lm
+mpicc mpi_block.c -o mpi_block.o -lm
+mpirun -np [procs] ./mpi_block.o [n] [rep]
 ```
 
-OBT: omp_triangular_numbers.c
-```
-gcc omp_triangular_numbers.c -o omp_triangular_numbers.o -fopenmp -lm
-```
-
-OB_S: omp_static_scheduling.c
-```
-gcc omp_static_scheduling.c -o omp_static_scheduling.o -fopenmp -lm
-```
-
-OB_D: omp_dynamic_scheduling.c
-```
-gcc omp_dynamic_scheduling.c -o omp_dynamic_scheduling.o -fopenmp -lm
-```
-
-OBf: omp_dynamic_scheduling.c
-```
-gcc omp_dynamic_scheduling.c -o omp_dynamic_scheduling_Ofast.o -fopenmp -Ofast -lm -DOfast
-```
-
-After executing the compiled `.o` file (with the parameters `n`, `rep` and `threads` for omp codes as explained above), a `.csv` file will be generated in the same folder with the execution results.
+After executing the compiled `.o` file, a `.csv` file will be generated in the same folder with the execution results.
 
 ## Analyzing results
-In order to visualize the produced results, there are three python scripts in the home folder:
-- `ilp_table.py`: creates two tables for GFLOPS and Bandwidth in GB/s from data in `results/results_ilp.csv`
-- `omp_plotting.py`: plots the four graphs for speedup and efficiency for symmetry check and transpose (for a specific power of two [4..12]) from data in `results/results_omp.csv`
-- `bandwidth.py`: plots the graph for effective and theoretical peak bandwidth (for a specific power of two [4..12]) from data in `results/results_omp.csv`
+In order to visualize the produced results, there are four python scripts in the home folder:
+- `bandwidth.py`: plots the graphs for bandwidth for symmetry check and transpose (for a specific power of two [4..12]) from data in `results/results_mpi.csv`
+- `flops.py`: plots the graphs for flops for symmetry check and transpose (for a specific power of two [4..12]) from data in `results/results_mpi.csv`
+- `mpi_plotting.py`: plots the graphs for speedup and efficiency for symmetry check and transpose (for a specific power of two [4..12]) from data in `results/results_mpi.csv`
+- `mpi_scalability.py`: plots the graph for scalability (starting from a specific power of two [4..8]) from data in `results/results_mpi.csv`
 
-In order to be able to execute the python scripts, it is required to have a version of `python 3` along with the modules `numpy`, `pandas`, `matplotlib` and `tabulate` installed. To execute the scripts, assumin that `python` command is available, execute the following commands from the home folder of the repository:
-
-ilp_table.py
-```
-python ilp_table.py
-```
-
-omp_plotting.py
-```
-python omp_plotting.py
-```
+In order to be able to execute the python scripts, it is required to have a version of `python 3` along with the modules `numpy`, `pandas`, `matplotlib` and installed. To execute the scripts, assuming that `python` command is available, execute the following commands from the home folder of the repository:
 
 bandwidth.py
 ```
 python bandwidth.py
+```
+
+flops.py
+```
+python flops.py
+```
+
+mpi_plotting.py
+```
+python mpi_plotting.py
+```
+
+mpi_scalability.py
+```
+python mpi_scalability.py
 ```
