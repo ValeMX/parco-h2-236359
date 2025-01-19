@@ -5,15 +5,16 @@ This project aims to deeply explore the use of Parallel Programming techniques i
 ## Description of the repository
 ```
 .
-├── bin                  # Compiled program files
-├── lib                  # Source code files
-├── results              # Results of the simulations
-├── bandwidth.py         # Python script to plot bandwidth graphs
-├── flops.py             # Python script to plot flops graphs
-├── mpi_plotting.py      # Python script to plot speedup and efficiency graphs
-├── mpi_scalability.py   # Python script to plot scalability graphs
-├── start.pbs            # Script to run simulations on HPC
-├── start.sh             # Script to run simulations on local machine
+├── bin                          # Compiled program files
+├── lib                          # Source code files
+├── results                      # Results of the simulations
+├── 236359_Cassone_Valerio.pdf   # Report file
+├── bandwidth.py                 # Python script to plot bandwidth graphs
+├── flops.py                     # Python script to plot flops graphs
+├── mpi_plotting.py              # Python script to plot speedup and efficiency graphs
+├── mpi_scalability.py           # Python script to plot scalability graphs
+├── start.pbs                    # Script to run simulations on HPC
+├── start.sh                     # Script to run simulations on local machine
 └── README.md
 ```
 The repository contains all the files used to run the simulations with the methodologies described in the paper. The `lib` folder contains all the source code files. When compiled via the scripts the generated programs will be located in the `bin` and, once executed, the results will be saved in the `results` folder.
